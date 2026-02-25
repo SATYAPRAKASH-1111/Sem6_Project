@@ -1,0 +1,55 @@
+1. The "File Chunking" Logic (Most Important)
+​Question: "Agar 1GB ki file hai, toh kya tera browser crash nahi hoga? Tune memory kaise manage ki?"
+​The Concept: Browser ki RAM limited hoti hai. Agar tum poori file ek saath readAsArrayBuffer karoge, toh browser "Out of Memory" error dega.
+​The Solution (Logic): Humne file ko Slices mein toda (usually 16KB to 64KB per chunk).
+​The Flow: 1. File.slice(start, end) use karke chhota tukda uthaya.
+2. FileReader se use ArrayBuffer mein convert kiya.
+3. Use RTCDataChannel.send() se bheja.
+4. Receiver side par ek Array mein saare chunks push kiye aur end mein new Blob(chunksArray) karke file assemble ki.
+​2. The "Backpressure" Problem
+​Question: "Sender ki speed Receiver se zyada hui toh kya hoga? Data loss kaise roka?"
+​The Answer: Sir, maine bufferedAmount monitor kiya hai.
+​Deep Logic: WebRTC ka ek internal buffer hota hai. Agar hum bina ruke data bhejte rahein, toh buffer overflow ho jayega.
+​The Code Fix: Maine ek check lagaya: if (dataChannel.bufferedAmount > threshold) { wait for onbufferedamountlow event }. Isse data flow control hota hai aur browser hang nahi hota.
+​3. The "Signaling" Process (No-Server)
+​Question: "Bina server ke do computers ne ek doosre ka IP kaise dhunda?"
+​The Answer: Manual Signaling.
+​Explanation: WebRTC ko connect hone ke liye teen cheezein chahiye: SDP (Offer/Answer) aur ICE Candidates.
+​The Hack: Humne server ka kaam "Insaan" se karwaya. User ne Offer copy karke doosre ko WhatsApp/Mail kiya. Isse system 100% decentralized ban gaya.
+​4. NAT Traversal & STUN Servers
+​Question: "Agar dono computers alag-alag WiFi par hain, toh connection kaise hoga?"
+​The Answer: Humne STUN (Session Traversal Utilities for NAT) server use kiya hai (Google ka free server).
+​Why? Computers aksar Routers/Firewalls ke peeche hote hain jinka Public IP pata nahi hota. STUN server computer ko uska Public IP and Port batata hai, taaki doosra computer use connect kar sake.
+​5. Security: "Is it safe?"
+​Question: "Kya koi beech mein data chura sakta hai?"
+​The Answer: No, Sir. WebRTC mein DTLS (Datagram Transport Layer Security) aur SRTP mandatory hai.
+​Fact: Yeh End-to-End Encrypted (E2EE) hai. Jab tak dono peers ke pass browser tab open hai, tabhi tak data transfer hoga. Data kahin save nahi hota.
+
+Term What it is? Your Answer
+SDP Session Description Protocol "Code ka ID card" (Video/Data capabilities bataata hai).
+ICE Candidate Network Path "Ghar ka raasta" (IP aur Port ki info).
+DataChannel The Tunnel Direct binary data transfer karne ka rasta.
+Blob Binary Large Object Received
+
+6. The Networking Layer (OSI Model)
+Question: "Tera P2P data kaunse protocol par chal raha hai? TCP ya UDP?"
+The Answer: Sir, WebRTC DataChannel SCTP (Stream Control Transmission Protocol) use karta hai, jo UDP ke upar chalta hai.
+The Logic: UDP fast hota hai, aur SCTP usme "Reliability" (data loss na ho) aur "Congestion Control" add karta hai.
+7. Signaling Server Alternatives
+Question: "Tune manual copy-paste kiya, but agar tujhe ise scale karna ho toh kaise karega?"
+The Answer: "Sir, hum WebSockets ya Firebase Realtime Database use karke ek 'Signaling Server' bana sakte hain jo automatically dono peers ke beech Offer/Answer exchange karwa dega."
+8. STUN vs. TURN (The "Boss" Question)
+Question: "Agar STUN server fail ho gaya ya user kisi bade corporate firewall ke peeche hai, toh kya tera project chalega?"
+The Answer: "Nahi Sir, us case mein humein TURN (Traversal Using Relays around NAT) server chahiye hoga."
+The Logic: TURN server ek 'Relay' ki tarah kaam karta hai. Agar direct connection (P2P) impossible hai, toh data TURN server ke through pass hota hai. (Lekin ye costly hota hai, isliye humne free STUN use kiya hai).
+9. File Integrity (Hash Check)
+Question: "Tujhe kaise pata ki jo file bheji wahi receive hui? Data corrupt toh nahi hua?"
+The Answer: "Sir, ideally humein SHA-256 Hashing use karni chahiye. Sender file ka hash nikalega, aur Receiver download ke baad dobara nikal ke match karega."
+Note: Agar tune code mein hash nahi dala, toh bol dena "It's in the Future Scope."
+10. The "Vanilla JS" Performance
+Question: "React use karta toh kya fayda hota?"
+The Answer: "Sir, UI management aasaan ho jati, lekin Binary Data Processing (ArrayBuffers/Blobs) ke liye Vanilla JS zyada performant hai kyunki humein kisi Virtual DOM ki zaroorat nahi hai. Hum directly Browser ke navigator API se baat kar rahe hain."
+🛠️ External Examiner ke Saamne "Star" Ban-ne ke Points:
+Browser Compatibility: Bata dena ki yeh Webkit aur Gecko dono engines par chalta hai (Chrome/Safari/Firefox).
+Zero Footprint: Bolna ki "Sir, server par 1 byte bhi save nahi ho raha, privacy 100% hai."
+Local vs Public: Agar do devices same WiFi par hain, toh connection mDNS ke through local IP par hi ban jayega, internet ki zaroorat nahi padegi for data transfer.
