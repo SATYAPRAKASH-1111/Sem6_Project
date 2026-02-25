@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>P2P File Share - Serverless WebRTC</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- ========== HEADER ========== -->
+        <header class="app-header">
+            <div class="app-logo">
+                <div class="logo-icon">📤</div>
+                <h1 class="app-title">P2P File Share</h1>
+            </div>
+            <p class="app-subtitle">
+                Secure, serverless file transfer using WebRTC. 
+                Share files directly between browsers with end-to-end encryption.
+            </p>
+        </header>
+
+        <!-- ========== STATUS BANNER ========== -->
+        <div class="status-banner" id="statusBanner">
+            <div class="status-indicator" id="statusIndicator"></div>
+            <span class="status-text" id="statusText">Select a role to begin</span>
+        </div>
+
+        <!-- ========== MAIN CONTENT ========== -->
+        <main class="main-content">
+            <!-- ===== CONNECTION PANEL ===== -->
+            <section class="panel">
+                <div class="panel-header">
+                    <div class="panel-icon">🔗</div>
+                    <h2 class="panel-title">Connection Setup</h2>
+                    <span class="panel-badge" id="roleBadge">No Role</span>
+                </div>
+
+                <!-- Role Selection -->
+                <div class="role-selection" id="roleSelection">
+                    <button class="role-btn" id="btnSender" onclick="P2PApp.selectRole('sender')">
+                        <span class="role-icon">📤</span>
+                        <span class="role-label">Sender</span>
+                        <span class="role-desc">Share files with others</span>
+                    </button>
+                    <button class="role-btn" id="btnReceiver" onclick="P2PApp.selectRole('receiver')">
+                        <span class="role-icon">📥</span>
+                        <span class="role-label">Receiver</span>
+                        <span class="role-desc">Receive shared files</span>
+                    </button>
+                </div>
+
+                <!-- Sender Panel -->
+                <div id="senderPanel" class="hidden">
+                    <div class="signal-group">
+                        <label class="signal-label">
+                            <span>📋</span>
+                            Your Connection Offer (Copy & send to receiver)
+                        </label>
+                        <textarea 
+                            class="signal-textarea" 
+                            id="localOffer" 
+                            readonly 
+                            placeholder="Connection offer will appear here after initialization..."
+                        ></textarea>
+                        <div class="btn-group mt-sm">
+                            <button class="btn btn-secondary" onclick="P2PApp.copyToClipboard('localOffer')">
+                                📋 Copy Offer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="signal-group">
+                        <label class="signal-label">
+                            <span>📥</span>
+                            Paste Receiver's Answer
+                        </label>
+                        <textarea 
+                            class="signal-textarea" 
+                            id="remoteAnswer" 
+                            placeholder="Paste the answer received from the receiver here..."
+                        ></textarea>
+                        <div class="btn-group mt-sm">
+                            <button class="btn btn-primary" onclick="P2PApp.handleRemoteAnswer()">
+                                ✓ Accept Answer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Receiver Panel -->
+                <div id="receiverPanel" class="hidden">
+                    <div class="signal-group">
+                        <label class="signal-label">
+                            <span>📥</span>
+                            Paste Sender's Offer
+                        </label>
+                        <textarea 
+                            class="signal-textarea" 
+                            id="remoteOffer" 
+                            placeholder="Paste the connection offer from the sender here..."
+                        ></textarea>
+                        <div class="btn-group mt-sm">
+                            <button class="btn btn-primary" onclick="P2PApp.handleRemoteOffer()">
+                                ✓ Accept Offer
+                            </button>
+                        </div>
+                    </div>
+
+                    <div class="signal-group">
+                        <label class="signal-label">
+                            <span>📋</span>
+                            Your Answer (Copy & send back to sender)
+                        </label>
+                        <textarea 
+                            class="signal-textarea" 
+                            id="localAnswer" 
+                            readonly 
+                            placeholder="Your answer will appear here after accepting the offer..."
+                        ></textarea>
+                        <div class="btn-group mt-sm">
+                            <button class="btn btn-secondary" onclick="P2PApp.copyToClipboard('localAnswer')">
+                                📋 Copy Answer
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Instructions -->
+                <div class="instructions" id="instructions">
+                    <h3 class="instructions-title">
+                        <span>ℹ️</span> How to Connect
+                    </h3>
+                    <ol id="instructionsList">
+                        <li>Select your role (Sender or Receiver)</li>
+                        <li>Follow the on-screen instructions for your role</li>
+                        <li>Exchange connection data with your peer</li>
+                        <li>Start transferring files securely!</li>
+                    </ol>
+                </div>
+            </section>
+
+            <!-- ===== FILE TRANSFER PANEL ===== -->
+            <section class="panel">
+                <div class="panel-header">
+                    <div class="panel-icon">📁</div>
+                    <h2 class="panel-title">File Transfer</h2>
+                    <span class="panel-badge" id="transferBadge">Idle</span>
+                </div>
+
+                <!-- File Drop Zone (Sender only) -->
+                <div class="file-drop-zone disabled" id="fileDropZone">
+                    <div class="drop-icon">📂</div>
+                    <p class="drop-text">Drop a file here or click to browse</p>
+                    <p class="drop-hint">Maximum file size: Unlimited (Chunked transfer)</p>
+                    <input type="file" class="file-input" id="fileInput">
+                </div>
+
+                <!-- Selected File Info -->
+                <div class="file-info" id="fileInfo">
+                    <div class="file-icon" id="fileTypeIcon">📄</div>
+                    <div class="file-details">
+                        <div class="file-name" id="fileName">filename.ext</div>
+                        <div class="file-meta" id="fileMeta">0 KB • Unknown type</div>
+                    </div>
+                    <button class="file-remove" onclick="P2PApp.removeFile()" title="Remove file">✕</button>
+                </div>
+
+                <!-- Send Button -->
+                <div id="sendButtonContainer" class="hidden mt-md">
+                    <button class="btn btn-success btn-full" id="btnSendFile" onclick="P2PApp.startFileTransfer()">
+                        🚀 Send File
+                    </button>
+                </div>
+
+                <!-- Progress Section -->
+                <div class="progress-section" id="progressSection">
+                    <div class="progress-header">
+                        <span class="progress-title" id="progressTitle">Transferring...</span>
+                        <span class="progress-stats" id="progressStats">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progressBar"></div>
+                    </div>
+                    <div class="progress-details">
+                        <div class="progress-detail">
+                            <div class="progress-detail-value" id="progressTransferred">0 B</div>
+                            <div class="progress-detail-label">Transferred</div>
+                        </div>
+                        <div class="progress-detail">
+                            <div class="progress-detail-value" id="progressTotal">0 B</div>
+                            <div class="progress-detail-label">Total Size</div>
+                        </div>
+                        <div class="progress-detail">
+                            <div class="progress-detail-value" id="progressSpeed">0 KB/s</div>
+                            <div class="progress-detail-label">Speed</div>
+                        </div>
+                        <div class="progress-detail">
+                            <div class="progress-detail-value" id="progressETA">--:--</div>
+                            <div class="progress-detail-label">Time Left</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Download Section (Receiver only) -->
+                <div class="download-section" id="downloadSection">
+                    <div class="download-icon">✅</div>
+                    <h3 class="download-title">File Received Successfully!</h3>
+                    <p class="text-muted" id="downloadInfo">filename.ext • 0 KB</p>
+                    <a class="download-link" id="downloadLink" href="#" download>
+                        ⬇️ Download File
+                    </a>
+                </div>
+
+                <!-- Waiting for file (Receiver) -->
+                <div class="hidden" id="waitingForFile">
+                    <div class="waiting-content">
+                        <div class="waiting-icon">⏳</div>
+                        <p>Waiting for sender to share a file...</p>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- ========== LOG PANEL ========== -->
+        <div class="log-panel">
+            <div class="log-header" onclick="P2PApp.toggleLog()">
+                <h3 class="log-title">
+                    <span>📝</span> Connection Log
+                </h3>
+                <button class="log-toggle" id="logToggle">Hide</button>
+            </div>
+            <div class="log-content" id="logContent"></div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- Load Application Script -->
+    <script src="script.js"></script>
+</body>
+</html>
